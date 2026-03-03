@@ -106,3 +106,12 @@ sudo MAX_PARALLEL_DOWNLOADS=20 PREFER_MIRRORS=1 ./elegant-updater.sh
 ## License
 
 [MIT](LICENSE)
+
+## Validation Status (2026-03-03)
+
+- Regression status: PASS
+- Commands validated:
+  - `bash -n elegant-updater.sh`
+  - `sudo DNF=<mock> DNF_CONF=<tmp> REPO_DIR=<tmp> RUN_UPDATE_SWEEP=1 bash ./elegant-updater.sh`
+- CI/CD status: passing on latest `main` runs.
+- Security hygiene: PASS (no hardcoded secrets or private keys detected in tracked files).
