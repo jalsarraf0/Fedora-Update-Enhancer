@@ -1,0 +1,90 @@
+name: Regression CI (Batched)
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: fedora-regression-batched-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Regression (${{ matrix.batch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        batch: ["syntax", "mock-upgrade"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Syntax checks
+        if: matrix.batch == 'syntax'
+        run: |
+          set -euo pipefail
+          bash -n elegant-updater.sh
+
+      - name: Full updater regression with mocked dnf5
+        if: matrix.batch == 'mock-upgrade'
+        run: |
+          set -Eeuo pipefail
+
+          TMP="$(mktemp -d)"
+          FAKE_DNF="${TMP}/dnf5"
+          FAKE_CONF="${TMP}/dnf.conf"
+          REPO_DIR="${TMP}/repos"
+
+          cat > "${FAKE_DNF}" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          cmd="${1:-}"
+          shift || true
+
+          case "${cmd}" in
+            makecache)
+              if [[ "${1:-}" == "--help" ]]; then
+                echo "usage: dnf5 makecache [--timer]"
+              fi
+              exit 0
+              ;;
+            clean|upgrade|update|autoremove|remove)
+              exit 0
+              ;;
+            repoquery)
+              if [[ "${1:-}" == "--help" ]]; then
+                echo "--installonly"
+              fi
+              exit 0
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+          EOF
+          chmod +x "${FAKE_DNF}"
+
+          mkdir -p "${REPO_DIR}"
+          cat > "${REPO_DIR}/test.repo" <<'EOF'
+          [test]
+          name=Test Repo
+          baseurl=https://example.invalid/repo
+          enabled=1
+          gpgcheck=0
+          EOF
+          touch "${FAKE_CONF}"
+
+          sudo -E DNF="${FAKE_DNF}" \
+            DNF_CONF="${FAKE_CONF}" \
+            REPO_DIR="${REPO_DIR}" \
+            SHOW_REPO_LIST=0 \
+            RUN_UPDATE_SWEEP=1 \
+            bash ./elegant-updater.sh
