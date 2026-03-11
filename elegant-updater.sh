@@ -244,7 +244,7 @@ ensure_kv() {
   ' "$conf" > "$tmp"
 
   # shellcheck disable=SC2015
-  install -m "$(stat -c '%a' "$conf" 2>/dev/null || echo 0644)" -o root -g root "$tmp" "$tmp" >/dev/null 2>&1 || true
+  install -m "$(stat -c '%a' "$conf" 2>/dev/null || echo 0644)" -o root -g root "$tmp" "$conf" >/dev/null 2>&1 || true
   mv -f "$tmp" "$conf"
 }
 
